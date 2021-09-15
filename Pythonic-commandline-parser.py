@@ -1,38 +1,83 @@
-class HtmlBuilder(object):
+"""
+This example uses docopt with the built in cmd module to demonstrate an
+interactive command application.
+Usage:
+    my_program tcp <host> <port> [--timeout=<seconds>]
+    my_program serial <port> [--baud=<n>] [--timeout=<seconds>]
+    my_program (-i | --interactive)
+    my_program (-h | --help | --version)
+Options:
+    -i, --interactive  Interactive Mode
+    -h, --help  Show this screen and exit.
+    --baud=<n>  Baudrate [default: 9600]
+"""
 
-    def __init__(self):
-        self.doc = None
+import sys
+import cmd
+from docopt import docopt, DocoptExit
 
-    def createHtml(self):
-        name = input("\nEnter the name for your HTML-page: ")   
-        self.doc = open(name + ".html", 'w')
 
-    def createTitle(self):
-        print (t[0], file=self.doc) #<!DOCTYPE html>
-        print (t[1], file=self.doc) #<html>
-        print (t[2], file=self.doc) #<head>
-        title = input("Enter your title here: ")
-        print ("  <title>",title,"</title>", file=doc)
-        print (t[3], file=self.doc) #</head>
+def docopt_cmd(func):
+    """
+    This decorator is used to simplify the try/except block and pass the result
+    of the docopt parsing to the called action.
+    """
+    def fn(self, arg):
+        try:
+            opt = docopt(fn.__doc__, arg)
 
-    def Dispose(self):
-        self.doc.flush()
-        self.doc.close()
+        except DocoptExit as e:
+            # The DocoptExit is thrown when the args do not match.
+            # We print a message to the user and the usage block.
 
-hb = HtmlBuilder()
-while True:
-    menu = input("\nPress 1 to enter the file name for the HTML-page"
-                 "\nPress 2 to enter title for the HTML-page"
-                 "\nPress 3 to start entering code in body"
-                 "\nPress 4 to exit\n")
-    if menu == "1":
-        hb.createHtml()
-    elif menu == "2":
-        hb.createTitle()
-    elif menu == "3":
-        hb.createBody()
-    else:
-        print ("Good bye!")
-        break
+            print('Invalid Command!')
+            print(e)
+            return
 
-hb.Dispose()
+        except SystemExit:
+            # The SystemExit exception prints the usage for --help
+            # We do not need to do the print here.
+
+            return
+
+        return func(self, opt)
+
+    fn.__name__ = func.__name__
+    fn.__doc__ = func.__doc__
+    fn.__dict__.update(func.__dict__)
+    return fn
+
+
+class MyInteractive (cmd.Cmd):
+    intro = 'Welcome to my interactive program!' \
+        + ' (type help for a list of commands.)'
+    prompt = '(my_program) '
+    file = None
+
+    @docopt_cmd
+    def do_tcp(self, arg):
+        """Usage: tcp <host> <port> [--timeout=<seconds>]"""
+
+        print(arg)
+
+    @docopt_cmd
+    def do_serial(self, arg):
+        """Usage: serial <port> [--baud=<n>] [--timeout=<seconds>]
+Options:
+    --baud=<n>  Baudrate [default: 9600]
+        """
+
+        print(arg)
+
+    def do_quit(self, arg):
+        """Quits out of Interactive Mode."""
+
+        print('Good Bye!')
+        exit()
+
+opt = docopt(__doc__, sys.argv[1:])
+
+if opt['--interactive']:
+    MyInteractive().cmdloop()
+
+print(opt)
